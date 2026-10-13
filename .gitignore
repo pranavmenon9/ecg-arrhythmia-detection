@@ -25,3 +25,7 @@ venv/
 .venv/
 env/
 ENV/
+
+# MLflow tracking
+mlruns/
+mlflow.db
