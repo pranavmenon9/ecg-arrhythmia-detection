@@ -1,0 +1,5 @@
+# Runtime dependencies for the API container (torch is installed separately in the Dockerfile, CPU build)
+fastapi==0.143.0
+uvicorn==0.54.0
+pydantic==2.14.1
+numpy==2.4.6

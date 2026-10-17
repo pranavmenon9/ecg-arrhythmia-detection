@@ -1,0 +1,15 @@
+.git
+.gitignore
+data/
+notebooks/
+tests/
+mlruns/
+mlflow.db
+venv/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.ipynb
+README.md
+CLAUDE.md
