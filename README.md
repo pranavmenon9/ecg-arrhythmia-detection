@@ -2,7 +2,9 @@
 
 Classify single ECG heartbeats into five types with a 1D CNN, tracked with MLflow, served through a FastAPI service, packaged with Docker, tested in CI and deployed on Render.
 
-**Live API:** https://ecg-arrhythmia-api.onrender.com/docs
+**Live demo:** https://ecg-arrhythmia-api.onrender.com/ (pick a sample beat or paste your own, and see the prediction)
+
+**API docs:** https://ecg-arrhythmia-api.onrender.com/docs
 
 > The service runs on a free tier and sleeps when idle, so the first request after a quiet period can take 30-60 seconds.
 > This is a learning project, not a medical device.
@@ -32,6 +34,10 @@ What I learned along the way:
 - A 1D CNN, which looks at local shapes in the signal, beat the MLP on every class, most of all on the rare ones.
 - Macro-F1 is used for early stopping and model comparison because accuracy hides poor performance on rare classes.
 
+## Try the demo page
+
+Open the live demo (or http://127.0.0.1:8000/ when running locally). Click one of the five sample beats, which are real beats from the MIT-BIH test set, to see the signal plotted and the model's probability for each class. You can also paste your own 187 values.
+
 ## Use the API
 
 `POST /predict` takes exactly 187 numbers and returns the predicted class with a probability for each class. Invalid input (wrong length, non-numeric values) gets a `422` error.
@@ -51,7 +57,7 @@ curl -X POST https://ecg-arrhythmia-api.onrender.com/predict \
 ## Project structure
 
 ```
-app/            FastAPI service (main.py) and a sample beat
+app/            FastAPI service (main.py), a sample beat, and the demo web page (static/)
 src/            model.py (CNN class shared by training and the API), export_model.py
 notebooks/      01 exploration, 02 baseline, 03 MLP, 04 CNN, 05 final test evaluation
 models/         cnn_sqrt.pt - the trained weights served by the API (879 KB)
@@ -86,7 +92,7 @@ Run the API:
 uvicorn app.main:app
 ```
 
-Then open http://127.0.0.1:8000/docs.
+Then open http://127.0.0.1:8000/ for the demo page or http://127.0.0.1:8000/docs for the API docs.
 
 Run the tests:
 
