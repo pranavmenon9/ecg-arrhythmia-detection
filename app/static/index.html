@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECG Heartbeat Classifier</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1b1f24; --muted: #5d6673; --border: #dde1e7;
+    --accent: #1f6feb; --accent-text: #ffffff; --trace: #1f6feb; --grid: #e9ecf0;
+    --bar: #1f6feb; --bar-bg: #e9ecf0; --error: #b42318; --error-bg: #fdecea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --card: #171b21; --text: #e8ebef; --muted: #98a1ae; --border: #2a303a;
+      --accent: #4c8dff; --accent-text: #0b1220; --trace: #4c8dff; --grid: #232932;
+      --bar: #4c8dff; --bar-bg: #232932; --error: #ff8a80; --error-bg: #3a1a18;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+          padding: 16px; margin-bottom: 16px; }
+  h2 { font-size: 1rem; margin: 0 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
+           background: var(--card); color: var(--text); padding: 8px 12px; }
+  button:hover { border-color: var(--accent); }
+  button.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  canvas { width: 100%; height: 200px; display: block; }
+  textarea { width: 100%; min-height: 90px; font: 13px/1.4 ui-monospace, Consolas, monospace;
+             background: var(--bg); color: var(--text); border: 1px solid var(--border);
+             border-radius: 8px; padding: 8px; resize: vertical; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+  .result-label { font-size: 1.5rem; font-weight: 700; margin: 0 0 12px; }
+  .bar-row { display: grid; grid-template-columns: 130px 1fr 60px; gap: 8px; align-items: center; margin: 6px 0; font-size: 0.95rem; }
+  .bar-track { height: 10px; border-radius: 5px; background: var(--bar-bg); overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--bar); }
+  .bar-row.top .name { font-weight: 700; }
+  .pct { text-align: right; font-variant-numeric: tabular-nums; }
+  .error { background: var(--error-bg); color: var(--error); border-radius: 8px; padding: 10px 12px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 480px) { .bar-row { grid-template-columns: 100px 1fr 52px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>ECG Heartbeat Classifier</h1>
+  <p class="sub">A 1D CNN that sorts a single heartbeat into one of five types. Try a sample beat or paste your own 187 values.</p>
+
+  <section class="card">
+    <h2>1. Pick a sample beat</h2>
+    <div class="chips" id="chips" role="group" aria-label="Sample beats"></div>
+    <p class="muted" id="sampleNote">Real beats from the MIT-BIH test set. The button shows the beat's true class.</p>
+  </section>
+
+  <section class="card">
+    <h2>Beat signal</h2>
+    <canvas id="plot" role="img" aria-label="Plot of the heartbeat signal"></canvas>
+  </section>
+
+  <section class="card">
+    <h2>2. Or paste your own beat</h2>
+    <textarea id="input" spellcheck="false" aria-label="187 comma-separated values between 0 and 1" placeholder="187 numbers between 0 and 1, separated by commas or spaces"></textarea>
+    <div class="row">
+      <button class="primary" id="classify">Classify</button>
+      <span class="muted" id="count"></span>
+    </div>
+  </section>
+
+  <section class="card" id="resultCard" hidden aria-live="polite">
+    <h2>Prediction</h2>
+    <p class="result-label" id="resultLabel"></p>
+    <div id="bars"></div>
+  </section>
+
+  <section class="card error" id="errorCard" hidden role="alert"></section>
+
+  <p class="muted">Not a medical device. Built for learning. API docs: <a href="/docs">/docs</a></p>
+</main>
+
+<script>
+const CLASSES = ["Normal", "Supraventricular", "Ventricular", "Fusion", "Unknown"];
+const LENGTH = 187;
+const $ = (id) => document.getElementById(id);
+let samples = [];
+
+function parseBeat(text) {
+  return text.split(/[\s,;\[\]]+/).filter(Boolean).map(Number);
+}
+
+function drawBeat(beat) {
+  const canvas = $("plot");
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  const css = getComputedStyle(document.documentElement);
+  const pad = 8;
+  ctx.strokeStyle = css.getPropertyValue("--grid");
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad + (h - 2 * pad) * i / 4;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  const valid = beat.filter((v) => Number.isFinite(v));
+  if (valid.length < 2) return;
+  const lo = Math.min(0, ...valid), hi = Math.max(1, ...valid);
+  ctx.strokeStyle = css.getPropertyValue("--trace");
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  beat.forEach((v, i) => {
+    const x = pad + (w - 2 * pad) * i / (Math.max(beat.length, LENGTH) - 1);
+    const y = h - pad - (h - 2 * pad) * ((v - lo) / (hi - lo));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+function showError(msg) {
+  $("resultCard").hidden = true;
+  $("errorCard").textContent = msg;
+  $("errorCard").hidden = false;
+}
+
+function showResult(data) {
+  $("errorCard").hidden = true;
+  $("resultLabel").textContent = data.label;
+  const bars = $("bars");
+  bars.replaceChildren();
+  CLASSES.forEach((name) => {
+    const p = data.probabilities[name];
+    const row = document.createElement("div");
+    row.className = "bar-row" + (name === data.label ? " top" : "");
+    const n = document.createElement("span"); n.className = "name"; n.textContent = name;
+    const track = document.createElement("div"); track.className = "bar-track";
+    const fill = document.createElement("div"); fill.className = "bar-fill"; fill.style.width = (p * 100) + "%";
+    track.appendChild(fill);
+    const pct = document.createElement("span"); pct.className = "pct";
+    pct.textContent = p < 0.001 ? "<0.1%" : (p * 100).toFixed(1) + "%";
+    row.append(n, track, pct);
+    bars.appendChild(row);
+  });
+  $("resultCard").hidden = false;
+}
+
+async function classify(beat) {
+  try {
+    const res = await fetch("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ beat }),
+    });
+    if (!res.ok) {
+      showError(res.status === 422
+        ? "The API rejected this input. A beat must be exactly " + LENGTH + " numbers."
+        : "The API returned an error (" + res.status + "). Please try again.");
+      return;
+    }
+    showResult(await res.json());
+  } catch (e) {
+    showError("Could not reach the API. If the service was idle, wait a moment and try again.");
+  }
+}
+
+function updateCount() {
+  const n = parseBeat($("input").value).length;
+  $("count").textContent = $("input").value.trim() ? n + " / " + LENGTH + " values" : "";
+}
+
+function loadSample(index) {
+  document.querySelectorAll("#chips button").forEach((b, i) => b.classList.toggle("active", i === index));
+  const s = samples[index];
+  $("input").value = s.beat.join(", ");
+  updateCount();
+  drawBeat(s.beat);
+  classify(s.beat);
+}
+
+$("classify").addEventListener("click", () => {
+  document.querySelectorAll("#chips button").forEach((b) => b.classList.remove("active"));
+  const beat = parseBeat($("input").value);
+  drawBeat(beat);
+  if (beat.length === 0) return showError("Paste 187 numbers first, or pick a sample beat.");
+  if (beat.some((v) => !Number.isFinite(v))) return showError("Some values are not numbers.");
+  if (beat.length !== LENGTH) return showError("Found " + beat.length + " values, but a beat needs exactly " + LENGTH + ".");
+  classify(beat);
+});
+$("input").addEventListener("input", updateCount);
+window.addEventListener("resize", () => drawBeat(parseBeat($("input").value)));
+
+(async function init() {
+  try {
+    samples = await (await fetch("/static/samples.json")).json();
+  } catch (e) {
+    return showError("Could not load the sample beats.");
+  }
+  samples.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = s.class;
+    b.addEventListener("click", () => loadSample(i));
+    $("chips").appendChild(b);
+  });
+  loadSample(2);
+})();
+</script>
+</body>
+</html>

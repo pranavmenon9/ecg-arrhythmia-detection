@@ -73,3 +73,19 @@ def test_non_finite_values_are_rejected(client):
     raw = '{"beat": [' + ",".join(["NaN"] * SIGNAL_LENGTH) + "]}"
     response = client.post("/predict", content=raw, headers={"Content-Type": "application/json"})
     assert response.status_code == 422
+
+
+def test_home_page_is_served(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "ECG Heartbeat Classifier" in response.text
+
+
+def test_demo_samples_are_valid_and_classified_correctly(client):
+    samples = client.get("/static/samples.json").json()
+    assert [s["class"] for s in samples] == CLASS_NAMES
+    for sample in samples:
+        assert len(sample["beat"]) == SIGNAL_LENGTH
+        body = client.post("/predict", json={"beat": sample["beat"]}).json()
+        assert body["label"] == sample["class"]

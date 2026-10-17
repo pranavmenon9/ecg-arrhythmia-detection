@@ -5,7 +5,8 @@ from typing import Annotated
 import torch
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.model import CLASS_NAMES, CNN, SIGNAL_LENGTH
@@ -48,6 +49,15 @@ class PredictionResponse(BaseModel):
     label: str
     class_index: int
     probabilities: dict[str, float]
+
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")
