@@ -3,7 +3,9 @@ from pathlib import Path
 from typing import Annotated
 
 import torch
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.model import CLASS_NAMES, CNN, SIGNAL_LENGTH
@@ -25,6 +27,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ECG Heartbeat Classifier", version="1.0.0", lifespan=lifespan)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    # The default 422 body echoes the rejected input, which crashes the response (a 500)
+    # when the input contains NaN. Report only where the error is and why.
+    errors = [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 class BeatRequest(BaseModel):
