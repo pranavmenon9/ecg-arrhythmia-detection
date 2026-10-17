@@ -29,3 +29,6 @@ ENV/
 # MLflow tracking
 mlruns/
 mlflow.db
+
+# Keep the one small weights file the app serves
+!models/cnn_sqrt.pt
