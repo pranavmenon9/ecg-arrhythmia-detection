@@ -10,4 +10,4 @@ _README placeholder: project description, setup, and usage to be added._
 - `notebooks/` - exploration and experiments
 - `src/` - source code
 - `models/` - trained model weights (not tracked)
-- `app/` - Flask app
+- `app/` - FastAPI inference service
