@@ -4,8 +4,6 @@ Classify single ECG heartbeats into five types with a 1D CNN, tracked with MLflo
 
 **Live demo:** https://ecg-arrhythmia-api.onrender.com/ (pick a sample beat or paste your own, and see the prediction)
 
-**API docs:** https://ecg-arrhythmia-api.onrender.com/docs
-
 > The service runs on a free tier and sleeps when idle, so the first request after a quiet period can take 30-60 seconds.
 > This is a learning project, not a medical device.
 
