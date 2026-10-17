@@ -59,7 +59,7 @@ curl -X POST https://ecg-arrhythmia-api.onrender.com/predict \
 ```
 app/            FastAPI service (main.py), a sample beat, and the demo web page (static/)
 src/            model.py (CNN class shared by training and the API), export_model.py
-notebooks/      01 exploration, 02 baseline, 03 MLP, 04 CNN, 05 final test evaluation
+notebooks/      01 exploration, 03 MLP, 04 CNN, 05 final test evaluation
 models/         cnn_sqrt.pt - the trained weights served by the API (879 KB)
 tests/          API tests (pytest)
 Dockerfile      container image for the API
