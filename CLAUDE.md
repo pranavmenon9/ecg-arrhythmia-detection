@@ -10,3 +10,5 @@ I'm learning deep learning by building this project. Follow these rules:
 - Before writing ML code, briefly confirm the design with me (architecture,
   loss, metrics) instead of assuming.
 - When debugging, explain the cause of the error before fixing it.
+
+Never add Co-Authored-By or Claude-Session lines to commit messages.
